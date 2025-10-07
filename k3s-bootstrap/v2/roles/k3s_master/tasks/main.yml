@@ -1,0 +1,80 @@
+---
+# tasks file for k3s_master
+
+# Corresponds to tasks from "Play 1: Install the first master"
+- name: Create k3s configuration directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Write base k3s config to the master
+  ansible.builtin.copy:
+    content: "{{ k3s_base_config }}"
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Download k3s installer script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-installer.sh
+    mode: '0755'
+
+- name: Install k3s on the primary master
+  ansible.builtin.command: /tmp/k3s-installer.sh
+  args:
+    creates: /etc/systemd/system/k3s.service
+
+- name: Create .kube directory for the remote user
+  ansible.builtin.file:
+    path: "/home/{{ kubeconfig_user }}/.kube"
+    state: directory
+    owner: "{{ kubeconfig_user }}"
+    group: "{{ kubeconfig_user }}"
+    mode: '0755'
+  become: no
+
+- name: Copy k3s.yaml to user's kube config and set ownership
+  ansible.builtin.copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "/home/{{ kubeconfig_user }}/.kube/config"
+    remote_src: yes
+    owner: "{{ kubeconfig_user }}"
+    group: "{{ kubeconfig_user }}"
+    mode: '0600'
+
+- name: Replace localhost with master IP in kubeconfig
+  ansible.builtin.command:
+    cmd: "sed -i 's/127.0.0.1/{{ ansible_host }}/g' /home/{{ kubeconfig_user }}/.kube/config"
+  become: no
+
+- name: Wait for k3s server on control-0 to be ready
+  ansible.builtin.command:
+    cmd: "kubectl get nodes"
+  environment:
+    KUBECONFIG: "/etc/rancher/k3s/k3s.yaml"
+  retries: 30
+  delay: 10
+  until: "result.rc == 0"
+  register: result
+  changed_when: false
+
+# Corresponds to tasks from "Play 2: Fetch the node token"
+- name: Wait for node-token to be created
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/node-token
+    timeout: 60
+
+- name: Read the node-token
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: node_token_raw
+
+- name: Set token as a fact for other plays
+  ansible.builtin.set_fact:
+    k3s_node_token: "{{ node_token_raw['content'] | b64decode | trim }}"
+    cacheable: yes

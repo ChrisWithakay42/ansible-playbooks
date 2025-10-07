@@ -1,0 +1,30 @@
+---
+# tasks file for k3s_agent
+- name: Create k3s configuration directory on joining nodes
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create k3s config.yaml for agent nodes
+  ansible.builtin.copy:
+    content: |
+      server: https://{{ hostvars[groups['k3s_masters'][0]]['ansible_host'] }}:6443
+      token: {{ hostvars[groups['k3s_masters'][0]]['k3s_node_token'] }}
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Download k3s installer script on joining nodes
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-installer.sh
+    mode: '0755'
+
+- name: Install k3s on agent nodes
+  ansible.builtin.command: /tmp/k3s-installer.sh agent
+  args:
+    creates: /etc/systemd/system/k3s-agent.service

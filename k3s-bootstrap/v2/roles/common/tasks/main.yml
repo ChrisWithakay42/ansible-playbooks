@@ -1,0 +1,8 @@
+---
+# tasks file for common role
+- name: Ensure iptables and open-iscsi are installed
+  ansible.builtin.package:
+    name:
+      - iptables
+      - open-iscsi
+    state: present

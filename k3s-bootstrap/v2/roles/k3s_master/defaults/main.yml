@@ -1,0 +1,11 @@
+---
+# defaults file for k3s_master
+kubeconfig_user: pi
+k3s_base_config: |
+  flannel-backend: "none"
+  disable-kube-proxy: true
+  disable-network-policy: true
+  cluster-init: true
+  disable:
+    - servicelb
+    - traefik
