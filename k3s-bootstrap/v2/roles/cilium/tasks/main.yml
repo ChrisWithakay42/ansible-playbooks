@@ -34,7 +34,7 @@
       --set loadBalancer.algorithm=maglev
       --set ipam.mode=kubernetes
       --set ingressController.enabled=true
-      --set ingressController.loadbalancer.mode=shared
+      --set ingressController.defaultLoadbalancerMode=shared
       --set ingressController.service.type=LoadBalancer
   environment:
     KUBECONFIG: "/home/{{ kubeconfig_user }}/.kube/config"
