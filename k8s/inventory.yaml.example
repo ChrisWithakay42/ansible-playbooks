@@ -1,0 +1,16 @@
+all:
+  hosts:
+    server1:
+      ansible_host: 192.168.1.101
+    server2:
+      ansible_host: 192.168.1.102
+  vars:
+    ansible_user: your_ssh_user
+    authorized_ssh_keys:
+      - user: your_ssh_user
+        key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQD... your_email@example.com"
+      - user: another_user
+        key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG... another_email@example.com"
+
+    passwordless_sudo_users:
+      - your_ssh_user
