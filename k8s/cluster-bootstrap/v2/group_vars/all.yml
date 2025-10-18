@@ -1,1 +1,2 @@
 kubernetes_flavor: k3s
+kubeconfig_user: pi
