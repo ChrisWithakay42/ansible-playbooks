@@ -1,6 +1,5 @@
 ---
 # defaults file for k3s_master
-kubeconfig_user: pi
 k3s_base_config: |
   flannel-backend: "none"
   disable-kube-proxy: true

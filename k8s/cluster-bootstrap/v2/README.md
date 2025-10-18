@@ -1,4 +1,4 @@
-- [ ] create and commit a vault manifest we can pull for correct installation
+- [ ] create and commit a vault release we can pull for correct installation
 - [ ] write script to unseal vault
 - [ ] install eso crds from github --server-side
 - [ ] pull lonhorng backup sealed-scret and tls certs from s3 

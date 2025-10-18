@@ -1,0 +1,33 @@
+---
+# tasks file for k3s_master_join
+
+- name: Create k3s configuration directory on joining masters
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create k3s config.yaml for other masters
+  ansible.builtin.copy:
+    content: |
+      server: https://{{ hostvars[groups['k3s_masters'][0]]['ansible_host'] }}:6443
+      token: {{ hostvars[groups['k3s_masters'][0]]['k3s_node_token'] }}
+      flannel-backend: "none"
+      disable-kube-proxy: true
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Download k3s installer script on joining masters
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-installer.sh
+    mode: '0755'
+
+# - name: Install k3s on other masters
+#   ansible.builtin.command: /tmp/k3s-installer.sh server
+#   args:
+#     creates: /etc/systemd/system/k3s.service

@@ -2,12 +2,12 @@
 # tasks file for helm_charts
 
 ### --- Repository Additions --- ###
-#
-# - name: Add the Sealed Secrets Helm repository
-#   kubernetes.core.helm_repository:
-#     name: sealed-secrets
-#     repo_url: "https://bitnami-labs.github.io/sealed-secrets"
-#   become: no
+
+- name: Add the Sealed Secrets Helm repository
+  kubernetes.core.helm_repository:
+    name: sealed-secrets
+    repo_url: "https://bitnami-labs.github.io/sealed-secrets"
+  become: no
 
 - name: Add the Longhorn Helm repository
   kubernetes.core.helm_repository:
@@ -28,15 +28,15 @@
   become: no
 
 #### --- Chart Installations --- ###
-  #
-# - name: Install Sealed Secrets Helm chart
-#   kubernetes.core.helm:
-#     name: sealed-secrets
-#     chart_ref: sealed-secrets/sealed-secrets
-#     release_namespace: kube-system
-#     create_namespace: yes
-#     wait: yes
-#   become: no
+
+- name: Install Sealed Secrets Helm chart
+  kubernetes.core.helm:
+    name: sealed-secrets
+    chart_ref: sealed-secrets/sealed-secrets
+    release_namespace: kube-system
+    create_namespace: yes
+    wait: yes
+  become: no
 
 - name: Install Longhorn Helm chart
   kubernetes.core.helm:

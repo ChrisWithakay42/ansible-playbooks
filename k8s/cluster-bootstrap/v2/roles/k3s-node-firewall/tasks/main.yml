@@ -1,0 +1,82 @@
+---
+# tasks file for k3s_firewall
+
+- name: "Allow K3s API Server (6443/tcp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "6443"
+    proto: tcp
+    comment: "K3s Kubernetes API Server"
+
+- name: "Allow Cilium VXLAN (8472/udp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "8472"
+    proto: udp
+    comment: "Cilium VXLAN"
+
+- name: "Allow K3s Metrics Server (10250/tcp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "10250"
+    proto: tcp
+    comment: "K3s Metrics Server"
+
+- name: "Allow Hubble UI (4244/tcp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "4244"
+    proto: tcp
+    comment: "Hubble UI"
+
+- name: "Allow Hubble Relay (4245/tcp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "4245"
+    proto: tcp
+    comment: "Hubble Relay"
+
+- name: "Allow Cilium Health Checks (4240/tcp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "4240"
+    proto: tcp
+    comment: "Cilium Health Checks"
+
+- name: "Allow ICMP for Health Checks"
+  ansible.builtin.ufw:
+    rule: allow
+    proto: icmp
+    comment: "Allow ICMP for Health Checks"
+
+- name: "Allow K3s Ingress HTTP (80/tcp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+    comment: "K3s Ingress HTTP"
+
+- name: "Allow K3s Ingress HTTPS (443/tcp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+    comment: "K3s Ingress HTTPS"
+
+- name: "Allow NodePort Services (30000:32767/tcp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "30000:32767"
+    proto: tcp
+    comment: "NodePort Services"
+
+- name: "Allow K3s etcd for HA (masters only)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    comment: "K3s etcd for HA"
+  with_items:
+    - "2379"
+    - "2380"
+  when: inventory_hostname in groups['k3s_masters']

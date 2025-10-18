@@ -1,0 +1,85 @@
+---
+- name: Play 0 - Apply hardening overrides
+  hosts: all
+  become: yes
+  roles:
+    - role: k3s-node-kernel
+      when: kubernetes_flavor == 'k3s'
+    - role: k8s-node-kernel
+      when: kubernetes_flavor == 'k8s'
+    - role: k3s-node-firewall
+      when: kubernetes_flavor == 'k3s'
+    - role: k8s-node-firewall
+      when: kubernetes_flavor == 'k8s'
+
+- name: Play 1 - Install prerequisites on all nodes
+  hosts: all
+  become: yes
+  gather_facts: no
+  roles:
+    - role: common
+
+- name: Play 2 - Install the first master/control-plane
+  hosts: k3s_masters[0]
+  become: yes
+  roles:
+    - role: k3s-master-node
+      when: kubernetes_flavor == 'k3s'
+    - role: k8s-control-plane
+      when: kubernetes_flavor == 'k8s'
+
+- name: Play 3 - Install other masters and agents
+  hosts: k3s_masters:!{{ groups['k3s_masters'][0] }}, k3s_agents
+  become: yes
+  vars:
+    token: "{{ hostvars[groups['k3s_masters'][0]]['k3s_node_token'] | default('') }}"
+    master_ip: "{{ hostvars[groups['k3s_masters'][0]]['ansible_host'] | default(hostvars[groups['k3s_masters'][0]]['inventory_hostname']) }}"
+  tasks:
+    - name: Join other masters to the k3s cluster
+      when: inventory_hostname in groups['k3s_masters'] and kubernetes_flavor == 'k3s'
+      ansible.builtin.include_role:
+        name: k3s-master-node-join
+
+    - name: Join agent nodes to the k3s cluster
+      when: inventory_hostname in groups['k3s_agents'] and kubernetes_flavor == 'k3s'
+      ansible.builtin.include_role:
+        name: k3s-agent-node
+
+    - name: Join other control-plane nodes to the k8s cluster
+      when: inventory_hostname in groups['k3s_masters'] and kubernetes_flavor == 'k8s'
+      ansible.builtin.include_role:
+        name: k8s-control-plane # This role should handle joining additional control plane nodes
+
+    - name: Join worker nodes to the k8s cluster
+      when: inventory_hostname in groups['k3s_agents'] and kubernetes_flavor == 'k8s'
+      ansible.builtin.include_role:
+        name: k8s-worker-node
+
+- name: Play 4 - Install and Validate Cilium CNI
+  hosts: k3s_masters[0]
+  become: yes
+  roles:
+    - role: cilium
+
+- name: Play 5 - Fetch kubeconfig to local machine
+  hosts: k3s_masters[0]
+  gather_facts: no
+  tasks:
+    - name: Remove existing local kubeconfig if it exists
+      ansible.builtin.file:
+        path: "~/.kube/config"
+        state: absent
+      delegate_to: localhost
+
+    - name: Fetch the modified kubeconfig from the master
+      ansible.builtin.fetch:
+        src: "/home/{{ kubeconfig_user }}/.kube/config"
+        dest: "~/.kube/config"
+        flat: yes
+
+- name: Play 6 Deploy mandatory Helm charts
+  hosts: k3s_masters[0]
+  environment:
+    KUBECONFIG: "/home/{{ kubeconfig_user }}/.kube/config"
+  roles:
+    - role: helm_charts
