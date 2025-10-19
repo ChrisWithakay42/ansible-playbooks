@@ -1,0 +1,29 @@
+---
+# tasks file for helm-eso
+
+# --- External Secrets Operator Installation (with separate CRD task) ---
+
+- name: Install External Secrets CRDs using Server-Side Apply
+  kubernetes.core.k8s:
+    state: present
+    # This ensures your CRDs match the operator version you intend to run.
+    src: "https://github.com/external-secrets/external-secrets/releases/download/v0.9.9/crds.yaml"
+    server_side_apply:
+      # Enable Server-Side apply
+      enabled: true
+      # A unique name to identify the manager of these fields
+      field_manager: "ansible-playbook"
+  become: no
+
+- name: Install External Secrets Operator Helm chart
+  kubernetes.core.helm:
+    name: external-secrets
+    chart_ref: external-secrets/external-secrets
+    chart_version: "0.9.9"
+    release_namespace: external-secrets
+    create_namespace: yes
+    wait: yes
+    values:
+      # We tell the chart not to manage CRDs
+      installCRDs: false
+  become: no

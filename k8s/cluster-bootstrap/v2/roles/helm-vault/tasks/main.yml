@@ -1,0 +1,15 @@
+---
+# tasks file for helm-vault
+
+- name: Install HashiCorp Vault Helm chart
+  kubernetes.core.helm:
+    name: vault
+    chart_ref: hashicorp/vault
+    release_namespace: vault
+    create_namespace: yes
+    wait: yes
+    values:
+      server:
+        ha:
+          enabled: false
+  become: no
