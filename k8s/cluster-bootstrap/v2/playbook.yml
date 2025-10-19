@@ -90,6 +90,16 @@
     KUBECONFIG: "/home/{{ kubeconfig_user }}/.kube/config"
   roles:
     - role: helm-sealed-secrets
+
+- name: Play 8 - Restore Sealed Secret certs
+  hosts: k3s_masters[0]
+  environment:
+    KUBECONFIG: "/home/{{ kubeconfig_user }}/.kube/config"
+    AWS_ACCESS_KEY_ID: "{{ s3_access_key_id }}"
+    AWS_SECRET_ACCESS_KEY: "{{ s3_secret_access_key }}"
+  roles:
+    - role: sealed-secret-restore-cert
+
 - name: Play 9 - Install Longhorn
   hosts: k3s_masters[0]
   environment:
