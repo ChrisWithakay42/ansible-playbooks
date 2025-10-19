@@ -7,3 +7,9 @@
       - open-iscsi
       - nfs-common
     state: present
+
+- name: Ensure AWS CLI is installed on the control machine
+  ansible.builtin.package:
+    name: awscli
+    state: present
+  delegate_to: localhost
