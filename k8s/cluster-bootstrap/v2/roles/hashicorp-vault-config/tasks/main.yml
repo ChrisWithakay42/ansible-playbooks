@@ -1,0 +1,10 @@
+---
+# tasks file for hashicorp-vault-config
+
+- name: "Apply HashiCorp Vault configuration manifests"
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ item }}"
+  with_fileglob:
+    - "{{ vault_manifests_path }}/*.yaml"
+    - "{{ vault_manifests_path }}/*.yml"

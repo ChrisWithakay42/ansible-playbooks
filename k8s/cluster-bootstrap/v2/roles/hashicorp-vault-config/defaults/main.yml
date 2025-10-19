@@ -1,0 +1,5 @@
+---
+# defaults file for hashicorp-vault-config
+
+# The absolute local path to the directory containing Vault manifest files.
+vault_manifests_path: "/Users/kris/Dev/personal/homelab/infrastructure/vault"

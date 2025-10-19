@@ -12,12 +12,14 @@ This Ansible playbook automates the bootstrapping of a Kubernetes cluster on pre
     *   HashiCorp Vault (secrets management)
     *   External Secrets Operator (integrates Vault with Kubernetes secrets)
 *   **Node Hardening:** Applies basic kernel and firewall settings for the cluster nodes.
+*   **Sealed Secret Restore:** Restores a `SealedSecret` manifest for Longhorn TLS from an S3-compatible object store.
 
 ## Prerequisites
 
 1.  **Ansible:** Ensure Ansible is installed on your control machine.
-2.  **Prepared Nodes:** You should have a set of Ubuntu nodes provisioned and accessible via SSH from your control machine.
-3.  **Security Hardening:** It is highly recommended to first apply the `ubuntu-server-baseline` playbook to your nodes.
+2.  **AWS CLI:** The `awscli` package must be installed on your control machine for the S3 tasks.
+3.  **Prepared Nodes:** You should have a set of Ubuntu nodes provisioned and accessible via SSH from your control machine.
+4.  **Security Hardening:** It is highly recommended to first apply the `ubuntu-server-baseline` playbook to your nodes.
 
 ## Configuration
 
@@ -37,12 +39,40 @@ All configuration variables are managed in the `group_vars/all.yml` file.
 *   `kubernetes_flavor`: Set this to `k3s` or `k8s` to choose the desired Kubernetes distribution.
 *   `kubeconfig_user`: The remote user on the master node for whom the `kubeconfig` file will be generated (e.g., `pi`).
 
+### 3. Sealed Secret Restore for Longhorn
+
+The playbook includes a role to restore a `SealedSecret` manifest for Longhorn's TLS certificate from an S3-compatible object store like Backblaze B2.
+
+**Configuration:**
+*   Edit the variables in `roles/sealed-secret-restore-cert/defaults/main.yml` to set your S3 bucket name and the path to the manifest file. Your S3 endpoint and credentials should be stored in the vault.
+
+**Credentials (Ansible Vault):**
+This role requires S3 credentials. The recommended way to provide them is using Ansible Vault.
+
+1.  Create an encrypted vault file to store your secrets:
+    ```bash
+    ansible-vault create group_vars/vault.yml
+    ```
+
+2.  Add your provider details and credentials to the file:
+    ```yaml
+    # group_vars/vault.yml
+    s3_endpoint_url: "https://s3.us-west-000.backblazeb2.com"
+    s3_access_key_id: "YOUR_ACCESS_KEY"
+    s3_secret_access_key: "YOUR_SECRET_KEY"
+    ```
+
+3.  When you run the playbook, Ansible will automatically load these variables. You will be prompted for your vault password:
+    ```bash
+    ansible-playbook -i inventory.yaml playbook.yml --ask-vault-pass
+    ```
+
 ## Usage
 
 Once your inventory and variables are configured, you can run the playbook:
 
 ```bash
-ansible-playbook -i inventory.yaml playbook.yml
+ansible-playbook -i inventory.yaml playbook.yml --ask-vault-pass
 ```
 
 After the playbook completes, the `kubeconfig` file for your new cluster will be fetched to your local `~/.kube/config`.
@@ -58,9 +88,9 @@ The playbook is structured into several plays:
 5.  **Install Cilium CNI:** Deploys and validates the Cilium CNI.
 6.  **Fetch Kubeconfig:** Retrieves the `kubeconfig` from the master node.
 7.  **Deploy Helm Charts:** Deploys Longhorn, Vault, and External Secrets Operator.
+8.  **Restore Sealed Secret for Longhorn:** Restores the `SealedSecret` manifest for Longhorn TLS from your configured S3-compatible bucket.
 
 ## TODO
 
 *   [ ] Create and commit a Vault manifest we can pull for correct installation.
 *   [ ] Write a script to unseal Vault.
-*   [ ] Pull Longhorn backup `sealed-secret` and TLS certs from S3.
