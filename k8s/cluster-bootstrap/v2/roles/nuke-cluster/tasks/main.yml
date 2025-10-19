@@ -1,0 +1,78 @@
+---
+# tasks file for nuke-cluster
+
+- name: Nuke k3s cluster
+  when: kubernetes_flavor == 'k3s'
+  block:
+    - name: Run k3s-uninstall.sh on masters
+      ansible.builtin.command: /usr/local/bin/k3s-uninstall.sh
+      args:
+        removes: /usr/local/bin/k3s-uninstall.sh
+      when: inventory_hostname in groups['k3s_masters']
+      ignore_errors: yes
+
+    - name: Run k3s-agent-uninstall.sh on agents
+      ansible.builtin.command: /usr/local/bin/k3s-agent-uninstall.sh
+      args:
+        removes: /usr/local/bin/k3s-agent-uninstall.sh
+      when: inventory_hostname in groups['k3s_agents']
+      ignore_errors: yes
+
+- name: Nuke k8s cluster
+  when: kubernetes_flavor == 'k8s'
+  block:
+    - name: Run kubeadm reset
+      ansible.builtin.command: kubeadm reset -f
+      ignore_errors: yes
+
+- name: Forcefully stop and disable k3s services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  with_items:
+    - "k3s"
+    - "k3s-agent"
+  ignore_errors: yes
+  when: kubernetes_flavor == 'k3s'
+
+- name: Clean up known CNI interfaces
+  ansible.builtin.shell: |
+    ip link delete cni0 || true
+    ip link delete flannel.1 || true
+  ignore_errors: yes
+
+- name: Flush all iptables rules
+  ansible.builtin.shell: |
+    iptables -F
+    iptables -X
+    iptables -t nat -F
+    iptables -t nat -X
+    iptables -t mangle -F
+    iptables -t mangle -X
+    iptables -P INPUT ACCEPT
+    iptables -P FORWARD ACCEPT
+    iptables -P OUTPUT ACCEPT
+  ignore_errors: yes
+
+- name: Remove k3s related directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "/etc/rancher"
+    - "/var/lib/rancher"
+  when: kubernetes_flavor == 'k3s'
+
+- name: Remove k8s related directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "/etc/cni"
+    - "/var/lib/kubelet"
+    - "/var/lib/etcd"
+
+- name: Reboot nodes to apply clean state
+  ansible.builtin.reboot:
+    reboot_timeout: 3600
