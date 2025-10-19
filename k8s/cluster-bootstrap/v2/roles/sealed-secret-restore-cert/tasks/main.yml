@@ -1,0 +1,30 @@
+---
+# tasks file for sealed-secret-restore-cert
+
+- name: Create a temporary directory for the manifest
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: sealed_secret_manifest
+  register: temp_manifest_dir
+  delegate_to: localhost
+
+- name: Download SealedSecret manifest from S3
+  ansible.builtin.command:
+    cmd: >
+      aws s3 cp s3://{{ s3_bucket }}/{{ s3_sealed_secret_manifest_path }} {{ temp_manifest_dir.path }}/sealed-secret.yaml
+      --endpoint-url {{ s3_endpoint_url }}
+  delegate_to: localhost
+  changed_when: true
+
+- name: Apply SealedSecret manifest to the cluster
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ temp_manifest_dir.path }}/sealed-secret.yaml"
+    namespace: "{{ sealed_secret_namespace }}"
+  delegate_to: localhost
+
+- name: Clean up temporary directory
+  ansible.builtin.file:
+    path: "{{ temp_manifest_dir.path }}"
+    state: absent
+  delegate_to: localhost
