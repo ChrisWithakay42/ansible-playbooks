@@ -1,1 +1,3 @@
 vault-master.key
+**/inventory.yaml
+k8s/ubuntu-server-baseline/**
