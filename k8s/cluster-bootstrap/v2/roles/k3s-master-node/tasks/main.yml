@@ -52,6 +52,29 @@
     cmd: "sed -i 's/127.0.0.1/{{ ansible_host }}/g' /home/{{ kubeconfig_user }}/.kube/config"
   become: no
 
+- name: Rename cluster, context and user in kubeconfig
+  block:
+    - name: Rename cluster name
+      ansible.builtin.command:
+        cmd: "sed -i '/clusters:/,/contexts:/ s/name: default/name: {{ cluster_name }}/' /home/{{ kubeconfig_user }}/.kube/config"
+    - name: Rename context's cluster reference
+      ansible.builtin.command:
+        cmd: "sed -i '/contexts:/,/users:/ s/cluster: default/cluster: {{ cluster_name }}/' /home/{{ kubeconfig_user }}/.kube/config"
+    - name: Rename context's user reference
+      ansible.builtin.command:
+        cmd: "sed -i '/contexts:/,/users:/ s/user: default/user: {{ cluster_name }}-admin/' /home/{{ kubeconfig_user }}/.kube/config"
+    - name: Rename context's name
+      ansible.builtin.command:
+        cmd: "sed -i '/contexts:/,/users:/ s/name: default/name: {{ cluster_name }}/' /home/{{ kubeconfig_user }}/.kube/config"
+    - name: Rename user's name
+      ansible.builtin.command:
+        cmd: "sed -i '/users:/,$ s/name: default/name: {{ cluster_name }}-admin/' /home/{{ kubeconfig_user }}/.kube/config"
+    - name: Set current context
+      ansible.builtin.command:
+        cmd: "sed -i 's/current-context: default/current-context: {{ cluster_name }}/' /home/{{ kubeconfig_user }}/.kube/config"
+  become: no
+  when: cluster_name is defined
+
 - name: Wait for k3s server on control-0 to be ready
   ansible.builtin.command:
     cmd: "kubectl get nodes"
