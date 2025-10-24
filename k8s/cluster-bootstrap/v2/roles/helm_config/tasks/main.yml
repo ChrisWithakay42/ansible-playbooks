@@ -1,0 +1,17 @@
+---
+- name: Add Helm repositories
+  kubernetes.core.helm_repository:
+    name: "{{ item.name }}"
+    repo_url: "{{ item.repo_url }}"
+    state: present
+  loop: "{{ helm_repositories | default([]) }}"
+
+- name: Install/Upgrade Helm charts
+  kubernetes.core.helm:
+    name: "{{ item.name }}"
+    chart_ref: "{{ item.chart_ref }}"
+    release_namespace: "{{ item.namespace }}"
+    create_namespace: "{{ item.create_namespace | default(omit) }}"
+    values: "{{ item.values | default({}) }}"
+    state: present
+  loop: "{{ helm_charts | default([]) }}"

@@ -5,12 +5,6 @@ This Ansible playbook automates the bootstrapping of a Kubernetes cluster on pre
 ## Features
 
 *   **Flavor-Agnostic:** Deploy `k3s` or `k8s` by changing a single variable.
-*   **CNI Installation:** Automatically installs and configures Cilium as the CNI.
-*   **Essential Services:** Deploys mandatory Helm charts for:
-    *   Sealed Secrets (for encrypting secrets into Git)
-    *   Longhorn (distributed block storage)
-    *   HashiCorp Vault (secrets management)
-    *   External Secrets Operator (integrates Vault with Kubernetes secrets)
 *   **Node Hardening:** Applies basic kernel and firewall settings for the cluster nodes.
 
 ## Prerequisites
@@ -55,12 +49,4 @@ The playbook is structured into several plays:
 2.  **Install Prerequisites:** Installs necessary packages like `iptables` and `nfs-common` on all nodes.
 3.  **Install Control Plane:** Installs the first master node (`k3s` or `k8s`).
 4.  **Join Nodes:** Joins the remaining control plane and worker nodes to the cluster.
-5.  **Install Cilium CNI:** Deploys and validates the Cilium CNI.
-6.  **Fetch Kubeconfig:** Retrieves the `kubeconfig` from the master node.
-7.  **Deploy Helm Charts:** Deploys Longhorn, Vault, and External Secrets Operator.
-
-## TODO
-
-*   [ ] Create and commit a Vault manifest we can pull for correct installation.
-*   [ ] Write a script to unseal Vault.
-*   [ ] Pull Longhorn backup `sealed-secret` and TLS certs from S3.
+5.  **Fetch Kubeconfig:** Retrieves the `kubeconfig` from the master node.

@@ -55,6 +55,7 @@
       ansible.builtin.include_role:
         name: k8s-worker-node
 
+
 - name: Play 4 - Fetch kubeconfig to local machine
   hosts: k3s_masters[0]
   gather_facts: no
@@ -71,43 +72,10 @@
         dest: "~/.kube/config"
         flat: yes
 
-# - name: Play 5 - Install and Validate Cilium CNI
-#   hosts: k3s_masters[0]
-#   become: yes
-#   roles:
-#     - role: cilium
-#
-# - name: Play 6 - Add Helm Repositories
-#   hosts: k3s_masters[0]
-#   environment:
-#     KUBECONFIG: "/home/{{ kubeconfig_user }}/.kube/config"
-#   roles:
-#     - role: helm-repos
-#
-# - name: Play 7 - Install Sealed Secrets Controller
-#   hosts: k3s_masters[0]
-#   environment:
-#     KUBECONFIG: "/home/{{ kubeconfig_user }}/.kube/config"
-#   roles:
-#     - role: helm-sealed-secrets
-# - name: Play 9 - Install Longhorn
-#   hosts: k3s_masters[0]
-#   environment:
-#     KUBECONFIG: "/home/{{ kubeconfig_user }}/.kube/config"
-#   roles:
-#     - role: helm-longhorn
-#
-# - name: Play 10 - Install and Configure Vault
-#   hosts: k3s_masters[0]
-#   environment:
-#     KUBECONFIG: "/home/{{ kubeconfig_user }}/.kube/config"
-#   roles:
-#     - role: helm-vault
-#     - role: hashicorp-vault-config
-#
-# - name: Play 11 - Install External Secrets Operator
-#   hosts: k3s_masters[0]
-#   environment:
-#     KUBECONFIG: "/home/{{ kubeconfig_user }}/.kube/config"
-#   roles:
-#     - role: helm-eso
+- name: Play 5 - Install Helm charts
+  hosts: k3s_masters[0]
+  become: yes
+  roles:
+    - role: helm_config
+      when: helm_enabled | default(false)
+

@@ -44,11 +44,9 @@
     comment: "Cilium Health Checks"
 
 - name: "Allow ICMP for Health Checks"
-  ansible.builtin.ufw:
-    rule: allow
-    proto: icmp
-    comment: "Allow ICMP for Health Checks"
-
+  ansible.builtin.command: ufw allow icmp
+  changed_when: false
+  failed_when: false
 - name: "Allow K3s Ingress HTTP (80/tcp)"
   ansible.builtin.ufw:
     rule: allow
