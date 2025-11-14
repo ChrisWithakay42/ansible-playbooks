@@ -30,6 +30,7 @@ All configuration variables are managed in the `group_vars/all.yml` file.
 
 *   `kubernetes_flavor`: Set this to `k3s` or `k8s` to choose the desired Kubernetes distribution.
 *   `kubeconfig_user`: The remote user on the master node for whom the `kubeconfig` file will be generated (e.g., `pi`).
+*   `install_cilium`: Set this to `true` to install Cilium as the CNI.
 
 ## Usage
 
@@ -49,4 +50,5 @@ The playbook is structured into several plays:
 2.  **Install Prerequisites:** Installs necessary packages like `iptables` and `nfs-common` on all nodes.
 3.  **Install Control Plane:** Installs the first master node (`k3s` or `k8s`).
 4.  **Join Nodes:** Joins the remaining control plane and worker nodes to the cluster.
-5.  **Fetch Kubeconfig:** Retrieves the `kubeconfig` from the master node.
+5.  **Install Cilium CNI:** Installs Cilium as the CNI for the cluster.
+6.  **Fetch Kubeconfig:** Retrieves the `kubeconfig` from the master node.

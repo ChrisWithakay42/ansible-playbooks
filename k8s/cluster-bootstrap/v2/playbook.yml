@@ -72,10 +72,10 @@
         dest: "~/.kube/config"
         flat: yes
 
-- name: Play 5 - Install Helm charts
+- name: Play 5 - Install Cilium CNI
   hosts: k3s_masters[0]
   become: yes
   roles:
-    - role: helm_config
-      when: helm_enabled | default(false)
+    - role: cilium
+      when: install_cilium | default(false)
 
