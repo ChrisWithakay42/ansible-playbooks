@@ -1,0 +1,93 @@
+---
+# tasks file for users
+
+- name: "5.3.1 Ensure password creation requirements are configured (Automated)"
+  ansible.builtin.pam_pwquality:
+    path: /etc/security/pwquality.conf
+    minlen: 14
+    dcredit: -1
+    ucredit: -1
+    ocredit: -1
+    lcredit: -1
+    difok: 8
+
+- name: "5.3.2 Ensure lockout for failed password attempts is configured (Automated)"
+  ansible.builtin.lineinfile:
+    path: /etc/security/faillock.conf
+    regexp: "^deny ="
+    line: "deny = 5"
+    create: yes
+    mode: '0644'
+
+- name: "5.3.2 Add pam_faillock.so to system-auth (auth)"
+  ansible.builtin.pam_faillock:
+    path: /etc/pam.d/system-auth
+    state: present
+    section: auth
+    control: required
+    module_path: pam_faillock.so
+    module_arguments:
+      - "preauth"
+      - "silent"
+      - "audit"
+      - "deny=5"
+      - "unlock_time=900"
+
+- name: "5.3.2 Add pam_faillock.so to system-auth (account)"
+  ansible.builtin.pam_faillock:
+    path: /etc/pam.d/system-auth
+    state: present
+    section: account
+    control: required
+    module_path: pam_faillock.so
+
+- name: "5.3.3 Ensure password expiration is 365 days or less (Automated)"
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_MAX_DAYS"
+    line: "PASS_MAX_DAYS 365"
+
+- name: "5.3.4 Ensure minimum days between password changes is 7 or more (Automated)"
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_MIN_DAYS"
+    line: "PASS_MIN_DAYS 7"
+
+- name: "5.3.5 Ensure password expiration warning days is 7 or more (Automated)"
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^PASS_WARN_AGE"
+    line: "PASS_WARN_AGE 7"
+
+- name: "5.2.4 Ensure root login is disabled (Automated)"
+  ansible.builtin.user:
+    name: root
+    password_lock: yes
+
+- name: "5.4.4 Ensure default user umask is 027 or more restrictive (Automated)"
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^UMASK"
+    line: "UMASK 027"
+
+- name: "5.5 Ensure inactive password lock is 30 days or less (Automated)"
+  ansible.builtin.user:
+    name: "{{ item.user }}"
+    expires: "{{ (ansible_date_time.epoch | int) + 2592000 }}"
+  with_items:
+    - "{{ ansible_users_with_shells }}"
+  with_items:
+    - "{{ ansible_users_with_shells }}"
+
+
+
+- name: "Configure passwordless sudo for specified users"
+  ansible.builtin.lineinfile:
+    path: "/etc/sudoers.d/99-passwordless-{{ item }}"
+    line: "{{ item }} ALL=(ALL) NOPASSWD: ALL"
+    create: yes
+    validate: /usr/sbin/visudo -cf %s
+    mode: '0440'
+  with_items: "{{ passwordless_sudo_users }}"
+
+

@@ -1,0 +1,9 @@
+---
+# tasks file for ssh_keys
+
+- name: "Ensure SSH authorized keys are in place"
+  ansible.posix.authorized_key:
+    user: "{{ item.user }}"
+    key: "{{ item.key }}"
+    state: present
+  with_items: "{{ authorized_ssh_keys }}"

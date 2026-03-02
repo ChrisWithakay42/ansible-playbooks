@@ -1,0 +1,14 @@
+---
+- name: Harden Ubuntu Servers
+  hosts: all
+  become: yes
+  roles:
+    - role: common
+    - role: users
+    - role: ssh_keys
+    - role: ssh
+    - role: firewall
+    - role: packages
+    - role: unattended_upgrades
+    - role: kernel
+    - role: auditd

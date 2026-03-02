@@ -1,0 +1,32 @@
+---
+# tasks file for unattended_upgrades
+
+- name: "1.8 Ensure updates, patches, and additional security software are installed (Automated)"
+  ansible.builtin.package:
+    name: unattended-upgrades
+    state: present
+
+- name: "1.8 Configure unattended-upgrades to install security updates"
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    content: |
+      Unattended-Upgrade::Allowed-Origins {
+      	"${distro_id}:${distro_codename}-security";
+      };
+      Unattended-Upgrade::Package-Blacklist {
+      //	"vim";
+      };
+      Unattended-Upgrade::Dev-Release "auto";
+
+- name: "1.8 Configure auto-upgrades interval"
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+- name: "1.8 Enable and start unattended-upgrades service"
+  ansible.builtin.service:
+    name: unattended-upgrades
+    enabled: yes
+    state: started

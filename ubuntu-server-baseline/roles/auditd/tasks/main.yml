@@ -1,0 +1,64 @@
+---
+# tasks file for auditd
+
+- name: "4.1.1.1 Ensure auditd is installed (Automated)"
+  ansible.builtin.package:
+    name:
+      - auditd
+      - audispd-plugins
+    state: present
+
+- name: "4.1.1.2 Ensure auditd service is enabled (Automated)"
+  ansible.builtin.service:
+    name: auditd
+    enabled: yes
+    state: started
+
+- name: "4.1.2.1 Configure audit log storage size (Automated)"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: "^max_log_file ="
+    line: "max_log_file = 100"
+    notify: restart auditd
+
+- name: "4.1.2.2 Configure audit log rotation (Automated)"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: "^num_logs ="
+    line: "num_logs = 5"
+    notify: restart auditd
+
+- name: "4.1.2.3 Configure audit log storage action (Automated)"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: "^max_log_file_action ="
+    line: "max_log_file_action = keep_logs"
+    notify: restart auditd
+
+- name: "4.2.1.1 Create CIS audit rules file (Automated)"
+  ansible.builtin.copy:
+    dest: /etc/audit/rules.d/cis.rules
+    content: |
+      # CIS Audit Rules
+      -w /etc/group -p wa -k identity
+      -w /etc/passwd -p wa -k identity
+      -w /etc/shadow -p wa -k identity
+      -w /etc/sudoers -p wa -k scope
+      -w /var/log/sudo.log -p wa -k actions
+      -w /sbin/insmod -p x -k modules
+      -w /sbin/rmmod -p x -k modules
+      -w /sbin/modprobe -p x -k modules
+      -a always,exit -F arch=b64 -S sethostname -S setdomainname -k system-locale
+      -a always,exit -F arch=b32 -S sethostname -S setdomainname -k system-locale
+      -a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change
+      -a always,exit -F arch=b32 -S adjtimex -S settimeofday -S stime -k time-change
+      -a always,exit -F arch=b64 -S clock_settime -k time-change
+      -a always,exit -F arch=b32 -S clock_settime -k time-change
+    notify: restart auditd
+
+- name: "4.2.3 Make the audit configuration immutable (Automated)"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/rules.d/cis.rules
+    line: "-e 2"
+    insertafter: EOF
+    notify: restart auditd
