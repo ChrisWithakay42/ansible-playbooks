@@ -12,6 +12,24 @@
     - role: k8s-node-firewall
       when: kubernetes_flavor == 'k8s'
 
+- name: Pre-flight Check - Verify IP Forwarding
+  hosts: all
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Read ipv4 forwarding status
+      ansible.builtin.command: sysctl net.ipv4.ip_forward
+      register: ip_forward_status
+      changed_when: false
+
+    - name: Assert that ipv4 forwarding is enabled
+      ansible.builtin.assert:
+        that:
+          - "'= 1' in ip_forward_status.stdout"
+        fail_msg: "IP forwarding (net.ipv4.ip_forward) is not enabled. This playbook requires IP forwarding. Please ensure the 'ubuntu-server-baseline' playbook was run first, and that its settings are being correctly overridden."
+        quiet: yes
+
+
 - name: Play 1 - Install prerequisites on all nodes
   hosts: all
   become: yes
