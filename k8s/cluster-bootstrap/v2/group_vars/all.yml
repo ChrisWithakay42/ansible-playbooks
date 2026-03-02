@@ -2,4 +2,9 @@ kubernetes_flavor: k3s
 kubeconfig_user: pi
 cluster_name: homelab
 
-install_cilium: true
+# k8s specific vars
+k8s_version: "1.29"
+pod_network_cidr: "10.0.0.0/8"
+
+install_cilium: false
+
