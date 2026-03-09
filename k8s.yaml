@@ -1,0 +1,188 @@
+---
+- name: 1. Prepare Pi 5 Nodes (All Nodes)
+  hosts: k8s_cluster
+  become: true
+  vars:
+    k8s_version: "v1.31"
+    ansible_user: "pi"
+
+  tasks:
+    - name: 0. EMERGENCY CLEANUP - Remove all conflicting K8s repo files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/kubernetes.list
+        - /etc/apt/sources.list.d/kubernetes-apt-keyring.list
+        - /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        - /etc/apt/keyrings/kubernetes-apt-keyring.asc
+        - /etc/apt/sources.list.d/archive_uri-https_pkgs_k8s_io_core_stable_v1_31_deb_-noble.list
+
+    - name: 1. Hardware - Optimize cmdline.txt (NVMe Stability + K8s Cgroups)
+      replace:
+        path: /boot/firmware/cmdline.txt
+        regexp: '^([\w](?!.*{{ item }}).*)$'
+        replace: '\1 {{ item }}'
+      loop:
+        - "pcie_aspm=off"
+        - "nvme_core.default_ps_max_latency_us=0"
+        - "cgroup_enable=cpuset"
+        - "cgroup_enable=memory"
+        - "cgroup_memory=1"
+      register: cmdline_txt
+
+    - name: 2. OS - Disable Swap
+      shell: |
+        swapoff -a
+        sed -i '/swap/d' /etc/fstab
+      when: ansible_swaptotal_mb > 0
+      ignore_errors: true
+
+    - name: 3. Network - Load Kernel Modules
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: 4. Network - Apply modprobe
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop: [overlay, br_netfilter]
+
+    - name: 5. Network - Sysctl bridge settings
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+      loop:
+        - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+        - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+        - { name: 'net.ipv4.ip_forward', value: '1' }
+
+    - name: 6. Reboot if hardware config changed
+      reboot:
+      when: cmdline_txt.changed
+
+    - name: 7. Install Containerd, Networking, and Storage Tools
+      apt:
+        name: [containerd, conntrack, socat, ipset, ethtool, ebtables, open-iscsi, nfs-common, jq]
+        state: present
+        update_cache: yes
+
+    - name: 8. Ensure iscsid is enabled and running
+      systemd:
+        name: iscsid
+        enabled: yes
+        state: started
+
+    - name: 9. Configure Containerd (SystemdCgroup)
+      shell: |
+        mkdir -p /etc/containerd
+        containerd config default > /etc/containerd/config.toml
+        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+      notify: Restart Containerd
+
+    - name: 10. K8s - Add Repository GPG Key
+      get_url:
+        url: "https://pkgs.k8s.io/core:/stable:/{{ k8s_version }}/deb/Release.key"
+        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+        mode: '0644'
+
+    - name: 11. K8s - Add Repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/{{ k8s_version }}/deb/ /"
+        filename: kubernetes
+        state: present
+
+    - name: 12. K8s - Install Kubelet and Kubeadm (All Nodes)
+      apt:
+        name: [kubelet, kubeadm]
+        state: present
+        update_cache: yes
+
+    - name: 13. K8s - Install Kubectl (Control Plane ONLY)
+      apt:
+        name: kubectl
+        state: present
+      when: inventory_hostname in groups['control_plane']
+
+    - name: 14. K8s - Hold Packages
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop: [kubelet, kubeadm]
+
+  handlers:
+    - name: Restart Containerd
+      service:
+        name: containerd
+        state: restarted
+
+- name: 2. Initialize Control Plane without kube-proxy
+  hosts: control_plane
+  become: true
+  vars:
+    pod_network_cidr: "10.244.0.0/16"
+    ansible_user: "pi"
+
+  tasks:
+    - name: Reset kubeadm (Clean up failed attempts)
+      command: kubeadm reset -f
+
+    - name: Kubeadm Init (Skipping kube-proxy)
+      command: >
+        kubeadm init 
+        --pod-network-cidr={{ pod_network_cidr }} 
+        --skip-phases=addon/kube-proxy
+      register: kubeadm_init
+
+    - name: Setup kubeconfig for user
+      shell: |
+        mkdir -p /home/{{ ansible_user }}/.kube
+        cp -i /etc/kubernetes/admin.conf /home/{{ ansible_user }}/.kube/config
+        chown {{ ansible_user }}:{{ ansible_user }} /home/{{ ansible_user }}/.kube/config
+
+    - name: Generate Join Token
+      command: kubeadm token create --print-join-command
+      register: join_command
+
+- name: 3. Join Workers
+  hosts: workers
+  become: true
+  tasks:
+    - name: Reset kubeadm on workers
+      command: kubeadm reset -f
+
+    - name: Run Join Command
+      command: "{{ hostvars[groups['control_plane'][0]]['join_command'].stdout }}"
+
+- name: 4. Finalize Cluster & Install Cilium (From Host)
+  hosts: control_plane
+  gather_facts: false
+  tasks:
+    - name: Copy kubeconfig to local machine (~/.kube/config)
+      fetch:
+        src: "/etc/kubernetes/admin.conf"
+        dest: "~/.kube/config"
+        flat: yes
+      become: true
+      delegate_to: "{{ inventory_hostname }}"
+
+    # - name: Wait for K8s API to respond locally
+    #   delegate_to: localhost
+    #   wait_for:
+    #     host: "{{ inventory_hostname }}"
+    #     port: 6443
+    #     timeout: 60
+
+    # - name: Install Cilium via CLI
+    #   delegate_to: localhost
+    #   shell: |
+    #     cilium install
+    #   register: cilium_install
+    #
+    # - name: Show Final Status
+    #   debug:
+    #     msg: "Cilium is installed and cluster is ready."

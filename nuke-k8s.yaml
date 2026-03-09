@@ -1,0 +1,82 @@
+---
+- name: Force Nuke K8s Cluster (V2 - Force Mode)
+  hosts: all
+  become: true
+
+  tasks:
+    - name: 1. Unhold K8s packages (Fixes Apt Error)
+      shell: apt-mark unhold kubelet kubeadm kubectl kubernetes-cni containerd
+      failed_when: false
+
+    - name: 2. Force Unmount everything in /var/lib/kubelet
+      shell: |
+        for m in $(mount | grep /var/lib/kubelet | awk '{print $3}'); do
+          umount -f -l $m
+        done
+      failed_when: false
+
+    - name: 3. Kill any lingering container processes
+      shell: |
+        pkill -9 kubelet || true
+        pkill -9 containerd || true
+        pkill -9 docker || true
+      failed_when: false
+
+    - name: 4. Force Remove Binary and Config Directories
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/kubernetes
+        - /var/lib/kubelet
+        - /var/lib/etcd
+        - /var/lib/k3s
+        - /etc/rancher
+        - /var/lib/rancher
+        - /var/lib/containerd
+        - /etc/containerd
+        - /var/run/kubernetes
+        - /etc/cni/net.d
+        - "/home/{{ ansible_user }}/.kube"
+        - "~/.kube"
+      failed_when: false
+
+    - name: 5. Cleanup APT Packages (With Force)
+      apt:
+        name: 
+          - kubelet
+          - kubeadm
+          - kubectl
+          - kubernetes-cni
+          - containerd
+          - docker-ce
+          - cri-tools
+        state: absent
+        purge: true
+        autoremove: true
+      register: apt_res
+      until: apt_res is success
+      retries: 3
+      delay: 5
+
+    - name: 6. Flush Networking (Iptables/IPVS)
+      shell: |
+        iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+        ip link delete cni0 || true
+        ip link delete flannel.1 || true
+        ip link delete weave || true
+        ip link delete kube-ipvs0 || true
+      failed_when: false
+
+    - name: 7. Delete Kubeconfig specifically from control-0
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/home/{{ ansible_user }}/.kube/config"
+        - "/root/.kube/config"
+      when: inventory_hostname == 'control-0'
+
+    - name: 8. Final Reboot
+      reboot:
+        msg: "Rebooting to ensure all kernel hooks and busy devices are cleared."

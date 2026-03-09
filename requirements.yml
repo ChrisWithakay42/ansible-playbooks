@@ -1,0 +1,4 @@
+---
+roles:
+  - name: dev-sec.os-hardening
+    src: https://github.com/dev-sec/ansible-os-hardening
