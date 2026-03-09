@@ -1,3 +1,0 @@
----
-# defaults file for ssh_keys
-authorized_ssh_keys: []
