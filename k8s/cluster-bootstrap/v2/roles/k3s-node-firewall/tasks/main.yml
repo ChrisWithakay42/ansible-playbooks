@@ -8,6 +8,13 @@
     proto: tcp
     comment: "K3s Kubernetes API Server"
 
+- name: "Allow Cilium Cluster Health (4242/tcp)"
+  ansible.builtin.ufw:
+    rule: allow
+    port: "4242"
+    proto: tcp
+    comment: "Cilium Cluster Health"
+
 - name: "Allow Cilium VXLAN (8472/udp)"
   ansible.builtin.ufw:
     rule: allow

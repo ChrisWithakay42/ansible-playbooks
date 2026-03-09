@@ -33,7 +33,7 @@
 - name: Play 1 - Install prerequisites on all nodes
   hosts: all
   become: yes
-  gather_facts: no
+  gather_facts: yes
   roles:
     - role: common
 

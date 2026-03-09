@@ -1,4 +1,14 @@
 ---
+- name: Set kubeconfig path for k3s
+  ansible.builtin.set_fact:
+    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+  when: kubernetes_flavor == 'k3s'
+
+- name: Set kubeconfig path for k8s
+  ansible.builtin.set_fact:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  when: kubernetes_flavor == 'k8s'
+
 - name: Download Helm installation script
   ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
@@ -24,4 +34,4 @@
     create_namespace: true
     values: "{{ cilium_helm_values }}"
     state: present
-    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    kubeconfig: "{{ kubeconfig_path }}"

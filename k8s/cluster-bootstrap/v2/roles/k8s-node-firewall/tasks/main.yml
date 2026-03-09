@@ -1,0 +1,36 @@
+---
+- name: Install iptables-persistent
+  ansible.builtin.package:
+    name: iptables-persistent
+    state: present
+
+- name: Master node firewall rules
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ item }}"
+    jump: ACCEPT
+    comment: "Allow k8s control plane"
+  with_items:
+    - "6443"
+    - "2379"
+    - "2380"
+    - "10250"
+    - "10251"
+    - "10252"
+  when: "inventory_hostname in groups['k3s_masters']"
+
+- name: Worker node firewall rules
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ item }}"
+    jump: ACCEPT
+    comment: "Allow k8s worker"
+  with_items:
+    - "10250"
+    - "30000:32767"
+  when: "inventory_hostname in groups['k3s_agents']"
+
+- name: Save iptables rules
+  ansible.builtin.command: netfilter-persistent save
